@@ -32,10 +32,12 @@ python3 /home/renesas/imagenet_eval.py \
 """
 
 import argparse
+import json
 import os
 import shutil
 import sys
 import tempfile
+from datetime import datetime
 
 import pexpect
 import PIL.Image as Image
@@ -94,6 +96,12 @@ parser.add_argument(
     help="Command to use for running the image-classifier, "
     "including the binary and all of its command lime "
     "parameters.",
+)
+
+parser.add_argument(
+    "--save-dir",
+    default="/tmp",
+    help="Directory to save the evaluation results/logs.",
 )
 
 # Opens and returns an image located at @param path using the PIL loader.
@@ -289,6 +297,7 @@ def print_topk_accuracy(total_image_count, top1_count, top5_count):
     top5_accuracy = float(top5_count) / float(total_image_count)
     print("\tTop-1 accuracy: " + "{0:.4f}".format(top1_accuracy))
     print("\tTop-5 accuracy: " + "{0:.4f}".format(top5_accuracy))
+    return top1_accuracy, top5_accuracy
 
 
 # Calculates and prints top-1 and top-5 accuracy for images located in
@@ -391,7 +400,10 @@ def calculate_top_k(
         "\nCompleted running; Final Top-1/5 accuracy across %d images:"
         % (total_image_count)
     )
-    print_topk_accuracy(total_image_count, top1_count, top5_count)
+    top1_accuracy, top5_accuracy = print_topk_accuracy(
+        total_image_count, top1_count, top5_count
+    )
+    return top1_accuracy, top5_accuracy
 
 
 def main():
@@ -414,14 +426,23 @@ def main():
         return
 
     cmd_args_dict = parse_and_verify_cmd(args.image_classifier_cmd)
-
-    calculate_top_k(
+    top1_accuracy, top5_accuracy = calculate_top_k(
         validation_images_dir,
         args.image_classifier_cmd,
         args.batch_size,
         args.resize_input_images,
         args.verbose,
     )
+
+    eval_data = {
+        "cmd_args": cmd_args_dict,
+        "accuracy": {"top1": top1_accuracy, "top5": top5_accuracy},
+    }
+    if not os.path.exists(args.save_dir):
+        os.makedirs(args.save_dir)
+    base_name = f"eval_{datetime.now().strftime('%Y-%m-%d-%H%M%S')}"
+    with open(os.path.join(args.save_dir, base_name), "w") as f:
+        json.dump(eval_data, f)
 
 
 if __name__ == "__main__":
