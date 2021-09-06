@@ -243,7 +243,7 @@ def get_curr_img_paths(
 
 # Verifies that the @param image_classifier_cmd is well formatted via
 # assertions.
-def verify_spawn_cmd(image_classifier_cmd):
+def parse_and_verify_cmd(image_classifier_cmd):
     split_cmd = image_classifier_cmd.split()
     if "image-classifier" in split_cmd[0]:
         assert "-" in split_cmd, "Streaming mode must be used."
@@ -257,6 +257,29 @@ def verify_spawn_cmd(image_classifier_cmd):
         assert any(
             "-image-mode=" in s for s in split_cmd
         ), "image-classifier requires -image-mode to be specified"
+    else:
+        raise AssertionError("Cannot find cmd image-classifier.")
+    # parse cmd
+    cmd_args_dict = {}
+    for item in split_cmd:
+        if (
+            item.startswith("image-classifier")
+            or item.startswith("-model-input-name=")
+            or item.startswith("-m=")
+            or item.startswith("-topk=")
+            or item == "-"
+        ):
+            continue
+        else:
+            if "=" in item:
+                k = item.split("-")[0]
+                v = item.split("-")[1]
+                if v.isdigit():
+                    v = int(v)
+                cmd_args_dict[k] = v
+            else:
+                cmd_args_dict[item] = "true"
+    return cmd_args_dict
 
 
 # Prints the Top-1 and Top-5 accuracy given @param total_image_count, @param
@@ -271,8 +294,6 @@ def print_topk_accuracy(total_image_count, top1_count, top5_count):
 # Calculates and prints top-1 and top-5 accuracy for images located in
 # subdirectories at @param validation_images_dir, given the command line
 # parameters passed in to @param args.
-
-
 def calculate_top_k(
     validation_images_dir,
     image_classifier_cmd,
@@ -281,8 +302,6 @@ def calculate_top_k(
     verbose,
 ):
     print("Calculating Top-1 and Top-5 accuracy...")
-
-    verify_spawn_cmd(image_classifier_cmd)
 
     img_paths, img_labels = get_img_paths_and_labels(validation_images_dir)
 
@@ -393,6 +412,8 @@ def main():
     if args.only_resize_and_save:
         save_centered_cropped_dataset(validation_images_dir)
         return
+
+    cmd_args_dict = parse_and_verify_cmd(args.image_classifier_cmd)
 
     calculate_top_k(
         validation_images_dir,
