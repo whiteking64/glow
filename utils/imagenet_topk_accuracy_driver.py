@@ -104,6 +104,14 @@ parser.add_argument(
     help="Directory to save the evaluation results/logs.",
 )
 
+parser.add_argument(
+    "--print-freq",
+    default=2500,
+    type=int,
+    help="Frequency to print the performance in the evaluation loop.",
+)
+
+
 # Opens and returns an image located at @param path using the PIL loader.
 def pil_loader(path):
     # open path as file to avoid ResourceWarning
@@ -309,6 +317,7 @@ def calculate_top_k(
     batch_size,
     resize_input_images,
     verbose,
+    print_freq,
 ):
     print("Calculating Top-1 and Top-5 accuracy...")
 
@@ -378,7 +387,7 @@ def calculate_top_k(
                     top5_count += 1
 
             curr_completed_count = img_index + batch_size
-            if curr_completed_count % 2500 == 0:
+            if curr_completed_count % print_freq == 0:
                 print(
                     "Finished image index %d out of %d"
                     % ((curr_completed_count, total_image_count))
@@ -388,7 +397,7 @@ def calculate_top_k(
                     top1_accuracy, _ = print_topk_accuracy(
                         curr_completed_count, top1_count, top5_count
                     )
-                    if (top1_accuracy < 0.1):
+                    if top1_accuracy < 0.1:
                         should_abort = True
                         break
                 else:
@@ -440,6 +449,7 @@ def main():
         args.batch_size,
         args.resize_input_images,
         args.verbose,
+        args.print_freq,
     )
 
     eval_data = {
