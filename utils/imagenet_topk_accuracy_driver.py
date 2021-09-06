@@ -327,6 +327,7 @@ def calculate_top_k(
     path_to_tmp_log = os.path.join(tmp_dir_name, "log.txt")
     fout = open(path_to_tmp_log, "wb")
     classifier_proc = pexpect.spawn(image_classifier_cmd, logfile=fout, timeout=None)
+    should_abort = False
     try:
         # Create a temporary directory to store the transformed image we
         # classify (if applicable) and the log of image-classifer output.
@@ -384,7 +385,12 @@ def calculate_top_k(
                 )
                 if verbose:
                     print("  Current Top-1/5 accuracy:")
-                    print_topk_accuracy(curr_completed_count, top1_count, top5_count)
+                    top1_accuracy, _ = print_topk_accuracy(
+                        curr_completed_count, top1_count, top5_count
+                    )
+                    if (top1_accuracy < 0.1):
+                        should_abort = True
+                        break
                 else:
                     print("")
                 sys.stdout.flush()
@@ -400,6 +406,8 @@ def calculate_top_k(
         "\nCompleted running; Final Top-1/5 accuracy across %d images:"
         % (total_image_count)
     )
+    if should_abort:
+        return 0.0, 0.0
     top1_accuracy, top5_accuracy = print_topk_accuracy(
         total_image_count, top1_count, top5_count
     )
